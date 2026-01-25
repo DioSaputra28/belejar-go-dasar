@@ -9,11 +9,28 @@ import (
 	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/model"
 )
 
+// GetProduk godoc
+// @Summary Get all products
+// @Description Get list of all products
+// @Tags products
+// @Produce json
+// @Success 200 {array} model.Produk
+// @Router /api/produk [get]
 func GetProduk(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(model.Produksi)
 }
 
+// CreateProduk godoc
+// @Summary Create a new product
+// @Description Create a new product with the input payload
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param product body model.Produk true "Product to create"
+// @Success 201 {object} model.Produk
+// @Failure 400 {string} string "Invalid request"
+// @Router /api/produk [post]
 func CreateProduk(w http.ResponseWriter, r *http.Request) {
 	var produkBaru model.Produk
 	err := json.NewDecoder(r.Body).Decode(&produkBaru)
@@ -29,8 +46,17 @@ func CreateProduk(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(produkBaru)
 }
-	
 
+// GetProdukByID godoc
+// @Summary Get product by ID
+// @Description Get a single product by its ID
+// @Tags products
+// @Produce json
+// @Param id path int true "Product ID"
+// @Success 200 {object} model.Produk
+// @Failure 400 {string} string "Invalid Produk ID"
+// @Failure 404 {string} string "Produk belum ada"
+// @Router /api/produk/{id} [get]
 func GetProdukByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 	id, err := strconv.Atoi(idStr)
@@ -50,6 +76,18 @@ func GetProdukByID(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Produk belum ada", http.StatusNotFound)
 }
 
+// UpdateProduk godoc
+// @Summary Update product
+// @Description Update an existing product by ID
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path int true "Product ID"
+// @Param product body model.Produk true "Product to update"
+// @Success 200 {object} model.Produk
+// @Failure 400 {string} string "Invalid request"
+// @Failure 404 {string} string "Produk belum ada"
+// @Router /api/produk/{id} [put]
 func UpdateProduk(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 
@@ -79,6 +117,16 @@ func UpdateProduk(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Produk belum ada", http.StatusNotFound)
 }
 
+// DeleteProduk godoc
+// @Summary Delete product
+// @Description Delete a product by ID
+// @Tags products
+// @Produce json
+// @Param id path int true "Product ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "Invalid Produk ID"
+// @Failure 404 {string} string "Produk belum ada"
+// @Router /api/produk/{id} [delete]
 func DeleteProduk(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 	id, err := strconv.Atoi(idStr)

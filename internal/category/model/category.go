@@ -1,9 +1,10 @@
 package model
 
+// Category represents a product category in the system
 type Category struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Description string `json:"description"`
+	ID          int    `json:"id" example:"1"`                            // Category ID
+	Name        string `json:"name" example:"Makanan"`                    // Category name
+	Description string `json:"description" example:"Makanan sehari-hari"` // Category description
 }
 
 var Categories = []Category{

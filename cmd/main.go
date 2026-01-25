@@ -5,9 +5,26 @@ import (
 	"fmt"
 	"net/http"
 
-	handlerProduct "github.com/DioSaputra28/belejar-go-dasar/internal/produk/handler"
 	handlerCategory "github.com/DioSaputra28/belejar-go-dasar/internal/category/handler"
+	handlerProduct "github.com/DioSaputra28/belejar-go-dasar/internal/produk/handler"
+
+	_ "github.com/DioSaputra28/belejar-go-dasar/docs" // This line is needed for swagger
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
+
+// @title Product & Category API
+// @version 1.0
+// @description This is a simple REST API for managing products and categories
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email dio@example.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
 
 func main() {
 
@@ -59,6 +76,10 @@ func main() {
 		}
 	})
 
+	// Swagger UI route
+	// Access at: http://localhost:8080/swagger/index.html
+	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
+
 	// localhost:8080/health
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -72,5 +93,6 @@ func main() {
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		fmt.Println("gagal running server")
+		fmt.Println(err)
 	}
 }
