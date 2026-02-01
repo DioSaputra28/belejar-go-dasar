@@ -3,10 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"strings"
 
+	"github.com/DioSaputra28/belejar-go-dasar/database"
 	handlerCategory "github.com/DioSaputra28/belejar-go-dasar/internal/category/handler"
 	handlerProduct "github.com/DioSaputra28/belejar-go-dasar/internal/produk/handler"
+	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/repository"
+	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/service"
+	"github.com/spf13/viper"
 
 	_ "github.com/DioSaputra28/belejar-go-dasar/docs" // This line is needed for swagger
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -26,18 +33,56 @@ import (
 // @host localhost:8080
 // @BasePath /
 
+type Config struct {
+	Port   string `mapstructure:"PORT"`
+	DBConn string `mapstructure:"SUPABASE_URL"`
+}
+
 func main() {
+
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
+
+	config := Config{
+		Port:   viper.GetString("PORT"),
+		DBConn: viper.GetString("SUPABASE_URL"),
+	}
+
+	dbConn := config.DBConn
+	if !strings.Contains(dbConn, "sslmode=") {
+		if strings.Contains(dbConn, "?") {
+			dbConn += "&sslmode=require"
+		} else {
+			dbConn += "?sslmode=require"
+		}
+	}
+
+	db, err := database.InitDB(dbConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	// Initialize product layer
+	productRepo := repository.NewProductRepository(db)
+	productService := service.NewProductService(productRepo)
+	productHandler := handlerProduct.NewProductHandler(productService)
 
 	// GET localhost:8080/api/produk/{id}
 	// PUT localhost:8080/api/produk/{id}
 	// DELETE localhost:8080/api/produk/{id}
 	http.HandleFunc("/api/produk/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			handlerProduct.GetProdukByID(w, r)
+			productHandler.GetProductByID(w, r)
 		} else if r.Method == "PUT" {
-			handlerProduct.UpdateProduk(w, r)
+			productHandler.UpdateProduct(w, r)
 		} else if r.Method == "DELETE" {
-			handlerProduct.DeleteProduk(w, r)
+			productHandler.DeleteProduct(w, r)
 		}
 
 	})
@@ -46,9 +91,9 @@ func main() {
 	// POST localhost:8080/api/produk
 	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			handlerProduct.GetProduk(w, r)
+			productHandler.GetProducts(w, r)
 		} else if r.Method == "POST" {
-			handlerProduct.CreateProduk(w, r)
+			productHandler.CreateProduct(w, r)
 		}
 
 	})
@@ -88,11 +133,11 @@ func main() {
 			"message": "API Running",
 		})
 	})
-	fmt.Println("Server running di localhost:8080")
+	addr := "0.0.0.0:" + config.Port
+	fmt.Println("Server running di", addr)
 
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
-		fmt.Println("gagal running server")
-		fmt.Println(err)
+		fmt.Println("gagal running server", err)
 	}
 }

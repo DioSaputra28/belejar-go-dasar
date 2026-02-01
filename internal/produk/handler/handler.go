@@ -7,144 +7,145 @@ import (
 	"strings"
 
 	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/model"
+	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/service"
 )
 
-// GetProduk godoc
-// @Summary Get all products
-// @Description Get list of all products
-// @Tags products
-// @Produce json
-// @Success 200 {array} model.Produk
-// @Router /api/produk [get]
-func GetProduk(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(model.Produksi)
+type ProductHandler struct {
+	service service.ProductService
 }
 
-// CreateProduk godoc
-// @Summary Create a new product
-// @Description Create a new product with the input payload
-// @Tags products
-// @Accept json
-// @Produce json
-// @Param product body model.Produk true "Product to create"
-// @Success 201 {object} model.Produk
-// @Failure 400 {string} string "Invalid request"
-// @Router /api/produk [post]
-func CreateProduk(w http.ResponseWriter, r *http.Request) {
-	var produkBaru model.Produk
-	err := json.NewDecoder(r.Body).Decode(&produkBaru)
+func NewProductHandler(service service.ProductService) *ProductHandler {
+	return &ProductHandler{service: service}
+}
+
+func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
+	products, err := h.service.GetAll()
 	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	produkBaru.ID = len(model.Produksi) + 1
-	model.Produksi = append(model.Produksi, produkBaru)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(products)
+}
+
+func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+	var product model.Product
+	err := json.NewDecoder(r.Body).Decode(&product)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
+		return
+	}
+
+	err = h.service.CreateProduct(&product)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(produkBaru)
+	json.NewEncoder(w).Encode(product)
 }
 
-// GetProdukByID godoc
-// @Summary Get product by ID
-// @Description Get a single product by its ID
-// @Tags products
-// @Produce json
-// @Param id path int true "Product ID"
-// @Success 200 {object} model.Produk
-// @Failure 400 {string} string "Invalid Produk ID"
-// @Failure 404 {string} string "Produk belum ada"
-// @Router /api/produk/{id} [get]
-func GetProdukByID(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid product ID"})
 		return
 	}
 
-	for _, p := range model.Produksi {
-		if p.ID == id {
+	product, err := h.service.GetProductById(id)
+	if err != nil {
+		if err.Error() == "product not found" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(p)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Product not found"})
 			return
 		}
-	}
-
-	http.Error(w, "Produk belum ada", http.StatusNotFound)
-}
-
-// UpdateProduk godoc
-// @Summary Update product
-// @Description Update an existing product by ID
-// @Tags products
-// @Accept json
-// @Produce json
-// @Param id path int true "Product ID"
-// @Param product body model.Produk true "Product to update"
-// @Success 200 {object} model.Produk
-// @Failure 400 {string} string "Invalid request"
-// @Failure 404 {string} string "Produk belum ada"
-// @Router /api/produk/{id} [put]
-func UpdateProduk(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
-
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	var updateProduk model.Produk
-	err = json.NewDecoder(r.Body).Decode(&updateProduk)
-	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	for i := range model.Produksi {
-		if model.Produksi[i].ID == id {
-			updateProduk.ID = id
-			model.Produksi[i] = updateProduk
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updateProduk)
-			return
-		}
-	}
-	http.Error(w, "Produk belum ada", http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(product)
 }
 
-// DeleteProduk godoc
-// @Summary Delete product
-// @Description Delete a product by ID
-// @Tags products
-// @Produce json
-// @Param id path int true "Product ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {string} string "Invalid Produk ID"
-// @Failure 404 {string} string "Produk belum ada"
-// @Router /api/produk/{id} [delete]
-func DeleteProduk(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid product ID"})
 		return
 	}
-	for i, p := range model.Produksi {
-		if p.ID == id {
-			model.Produksi = append(model.Produksi[:i], model.Produksi[i+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "sukses delete",
-			})
 
-			return
-		}
+	var product model.Product
+	err = json.NewDecoder(r.Body).Decode(&product)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
+		return
 	}
 
-	http.Error(w, "Produk belum ada", http.StatusNotFound)
+	product.ID = id
+	err = h.service.UpdateProduct(&product)
+	if err != nil {
+		if err.Error() == "product not found" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Product not found"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(product)
+}
+
+func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid product ID"})
+		return
+	}
+
+	err = h.service.DeleteProduct(id)
+	if err != nil {
+		if err.Error() == "product not found" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Product not found"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Product deleted successfully",
+	})
 }
