@@ -10,9 +10,11 @@ import (
 
 	"github.com/DioSaputra28/belejar-go-dasar/database"
 	handlerCategory "github.com/DioSaputra28/belejar-go-dasar/internal/category/handler"
+	categoryRepository "github.com/DioSaputra28/belejar-go-dasar/internal/category/repository"
+	categoryService "github.com/DioSaputra28/belejar-go-dasar/internal/category/service"
 	handlerProduct "github.com/DioSaputra28/belejar-go-dasar/internal/produk/handler"
-	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/repository"
-	"github.com/DioSaputra28/belejar-go-dasar/internal/produk/service"
+	productRepository "github.com/DioSaputra28/belejar-go-dasar/internal/produk/repository"
+	productService "github.com/DioSaputra28/belejar-go-dasar/internal/produk/service"
 	"github.com/spf13/viper"
 
 	_ "github.com/DioSaputra28/belejar-go-dasar/docs" // This line is needed for swagger
@@ -69,9 +71,14 @@ func main() {
 	defer db.Close()
 
 	// Initialize product layer
-	productRepo := repository.NewProductRepository(db)
-	productService := service.NewProductService(productRepo)
-	productHandler := handlerProduct.NewProductHandler(productService)
+	productRepo := productRepository.NewProductRepository(db)
+	productSvc := productService.NewProductService(productRepo)
+	productHandler := handlerProduct.NewProductHandler(productSvc)
+
+	// Initialize category layer
+	categoryRepo := categoryRepository.NewCategoryRepository(db)
+	categorySvc := categoryService.NewCategoryService(categoryRepo)
+	categoryHandler := handlerCategory.NewCategoryHandler(categorySvc)
 
 	// GET localhost:8080/api/produk/{id}
 	// PUT localhost:8080/api/produk/{id}
@@ -103,21 +110,21 @@ func main() {
 	// DELETE localhost:8080/api/category/{id}
 	http.HandleFunc("/api/category/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			handlerCategory.GetCategoryByID(w, r)
+			categoryHandler.GetCategoryByID(w, r)
 		} else if r.Method == "PUT" {
-			handlerCategory.UpdateCategory(w, r)
+			categoryHandler.UpdateCategory(w, r)
 		} else if r.Method == "DELETE" {
-			handlerCategory.DeleteCategory(w, r)
+			categoryHandler.DeleteCategory(w, r)
 		}
 	})
 
-	// GET localhost:8080/api/category
+	// GET localhost:	
 	// POST localhost:8080/api/category
 	http.HandleFunc("/api/category", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			handlerCategory.GetCategory(w, r)
+			categoryHandler.GetCategories(w, r)
 		} else if r.Method == "POST" {
-			handlerCategory.CreateCategory(w, r)
+			categoryHandler.CreateCategory(w, r)
 		}
 	})
 

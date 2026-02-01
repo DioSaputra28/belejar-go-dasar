@@ -7,142 +7,145 @@ import (
 	"strings"
 
 	"github.com/DioSaputra28/belejar-go-dasar/internal/category/model"
+	"github.com/DioSaputra28/belejar-go-dasar/internal/category/service"
 )
 
-// GetCategory godoc
-// @Summary Get all categories
-// @Description Get list of all categories
-// @Tags categories
-// @Produce json
-// @Success 200 {array} model.Category
-// @Router /api/category [get]
-func GetCategory(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(model.Categories)
+type CategoryHandler struct {
+	service service.CategoryService
 }
 
-// CreateCategory godoc
-// @Summary Create a new category
-// @Description Create a new category with the input payload
-// @Tags categories
-// @Accept json
-// @Produce json
-// @Param category body model.Category true "Category to create"
-// @Success 201 {object} model.Category
-// @Failure 400 {string} string "Invalid request"
-// @Router /api/category [post]
-func CreateCategory(w http.ResponseWriter, r *http.Request) {
-	var category model.Category
-	err := json.NewDecoder(r.Body).Decode(&category)
+func NewCategoryHandler(service service.CategoryService) *CategoryHandler {
+	return &CategoryHandler{service: service}
+}
+
+func (h *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+	categories, err := h.service.GetAll()
 	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	category.ID = len(model.Categories) + 1
-	model.Categories = append(model.Categories, category)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categories)
+}
+
+func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
+	var category model.Category
+	err := json.NewDecoder(r.Body).Decode(&category)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
+		return
+	}
+
+	err = h.service.CreateCategory(&category)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(category)
 }
 
-// GetCategoryByID godoc
-// @Summary Get category by ID
-// @Description Get a single category by its ID
-// @Tags categories
-// @Produce json
-// @Param id path int true "Category ID"
-// @Success 200 {object} model.Category
-// @Failure 400 {string} string "Invalid Category ID"
-// @Failure 404 {string} string "Category not found"
-// @Router /api/category/{id} [get]
-func GetCategoryByID(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/category/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid category ID"})
 		return
 	}
 
-	for i := range model.Categories {
-		if model.Categories[i].ID == id {
+	category, err := h.service.GetCategoryById(id)
+	if err != nil {
+		if err.Error() == "category not found" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(model.Categories[i])
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Category not found"})
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
 
-	http.Error(w, "Category not found", http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(category)
 }
 
-// UpdateCategory godoc
-// @Summary Update category
-// @Description Update an existing category by ID
-// @Tags categories
-// @Accept json
-// @Produce json
-// @Param id path int true "Category ID"
-// @Param category body model.Category true "Category to update"
-// @Success 200 {object} model.Category
-// @Failure 400 {string} string "Invalid request"
-// @Failure 404 {string} string "Category not found"
-// @Router /api/category/{id} [put]
-func UpdateCategory(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/category/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid category ID"})
 		return
 	}
 
-	var updateCategory model.Category
-	err = json.NewDecoder(r.Body).Decode(&updateCategory)
+	var category model.Category
+	err = json.NewDecoder(r.Body).Decode(&category)
 	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
 		return
 	}
 
-	for i := range model.Categories {
-		if model.Categories[i].ID == id {
-			updateCategory.ID = id
-			model.Categories[i] = updateCategory
-
+	category.ID = id
+	err = h.service.UpdateCategory(&category)
+	if err != nil {
+		if err.Error() == "category not found" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updateCategory)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Category not found"})
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
 
-	http.Error(w, "Category not found", http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(category)
 }
 
-// DeleteCategory godoc
-// @Summary Delete category
-// @Description Delete a category by ID
-// @Tags categories
-// @Produce json
-// @Param id path int true "Category ID"
-// @Success 204 "No Content"
-// @Failure 400 {string} string "Invalid Category ID"
-// @Failure 404 {string} string "Category not found"
-// @Router /api/category/{id} [delete]
-func DeleteCategory(w http.ResponseWriter, r *http.Request) {
+func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/category/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid Category ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid category ID"})
 		return
 	}
 
-	for i := range model.Categories {
-		if model.Categories[i].ID == id {
-			model.Categories = append(model.Categories[:i], model.Categories[i+1:]...)
-
-			w.WriteHeader(http.StatusNoContent)
+	err = h.service.DeleteCategory(id)
+	if err != nil {
+		if err.Error() == "category not found" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Category not found"})
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
 
-	http.Error(w, "Category not found", http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Category deleted successfully",
+	})
 }
