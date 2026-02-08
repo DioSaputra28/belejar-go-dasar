@@ -9,7 +9,7 @@ import (
 )
 
 type ProductRepository interface {
-	GetAll() ([]model.Product, error)
+	GetAll(name string) ([]model.Product, error)
 	CreateProduct(product *model.Product) error
 	GetProductById(id int) (model.Product, error)
 	UpdateProduct(product *model.Product) error
@@ -24,14 +24,21 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) GetAll() ([]model.Product, error) {
-	rows, err := r.db.Query("SELECT id, name, price, stock, created_at FROM product")
+func (r *productRepository) GetAll(name string) ([]model.Product, error) {
+	var rows *sql.Rows
+	var err error
+
+	if name == "" {
+		rows, err = r.db.Query("SELECT id, name, price, stock, created_at FROM product")
+	} else {
+		rows, err = r.db.Query("SELECT id, name, price, stock, created_at FROM product WHERE name ILIKE $1", "%"+name+"%")
+	}
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var products []model.Product
+	products := make([]model.Product, 0)
 	for rows.Next() {
 		var p model.Product
 		err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.CreatedAt)
@@ -39,6 +46,10 @@ func (r *productRepository) GetAll() ([]model.Product, error) {
 			return nil, err
 		}
 		products = append(products, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return products, nil

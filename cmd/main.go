@@ -15,6 +15,9 @@ import (
 	handlerProduct "github.com/DioSaputra28/belejar-go-dasar/internal/produk/handler"
 	productRepository "github.com/DioSaputra28/belejar-go-dasar/internal/produk/repository"
 	productService "github.com/DioSaputra28/belejar-go-dasar/internal/produk/service"
+	handlerTransaction "github.com/DioSaputra28/belejar-go-dasar/internal/transaction/handler"
+	transactionRepository "github.com/DioSaputra28/belejar-go-dasar/internal/transaction/repository"
+	transactionService "github.com/DioSaputra28/belejar-go-dasar/internal/transaction/service"
 	"github.com/spf13/viper"
 
 	_ "github.com/DioSaputra28/belejar-go-dasar/docs" // This line is needed for swagger
@@ -80,6 +83,26 @@ func main() {
 	categorySvc := categoryService.NewCategoryService(categoryRepo)
 	categoryHandler := handlerCategory.NewCategoryHandler(categorySvc)
 
+	// Initialize transaction layer
+	transactionRepo := transactionRepository.NewTransactionRepository(db)
+	transactionSvc := transactionService.NewTransactionService(transactionRepo)
+	transactionHandler := handlerTransaction.NewTransactionHandler(transactionSvc)
+
+	// POST localhost:8080/api/checkout
+	http.HandleFunc("/api/checkout", func(w http.ResponseWriter, r *http.Request) {
+		transactionHandler.HandleCheckout(w, r)
+	})
+
+	// GET localhost:8080/api/report
+	http.HandleFunc("/api/report", func(w http.ResponseWriter, r *http.Request) {
+		transactionHandler.HandleReport(w, r)
+	})
+
+	// GET localhost:8080/api/report/today
+	http.HandleFunc("/api/report/today", func(w http.ResponseWriter, r *http.Request) {
+		transactionHandler.HandleReportToday(w, r)
+	})
+
 	// GET localhost:8080/api/produk/{id}
 	// PUT localhost:8080/api/produk/{id}
 	// DELETE localhost:8080/api/produk/{id}
@@ -118,7 +141,7 @@ func main() {
 		}
 	})
 
-	// GET localhost:	
+	// GET localhost:
 	// POST localhost:8080/api/category
 	http.HandleFunc("/api/category", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
